@@ -1,9 +1,0 @@
-[Unit]
-Description=Détecteur de modification locale de la base KeePass pour Push immédiat vers GCS
-
-[Path]
-PathModified=%h/.local/share/keepass/passwords.kdbx
-Unit=keepass-sync.service
-
-[Install]
-WantedBy=paths.target

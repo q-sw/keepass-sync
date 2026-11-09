@@ -55,20 +55,21 @@ nix develop
 
 Si vous installez manuellement les dépendances ou les intégrez dans votre configuration système (`/etc/nixos/configuration.nix` ou `home-manager`) :
 
-| Binaire / Paquet | Rôle dans l'architecture | Paquet Nixpkgs | Paquet Debian/Ubuntu |
-| :--- | :--- | :--- | :--- |
-| `keepassxc` & `keepassxc-cli` | Gestionnaire de mots de passe & outil CLI de fusion au niveau entrée | `pkgs.keepassxc` | `keepassxc` |
-| `rclone` | Transport robuste et authentifié vers le bucket Google Cloud Storage | `pkgs.rclone` | `rclone` |
-| `secret-tool` | Lecture/écriture sécurisée du mot de passe maître dans le trousseau de session | `pkgs.libsecret` | `libsecret-tools` |
-| `notify-send` | Émission de notifications de bureau lors des fusions et alertes d'erreurs | `pkgs.libnotify` | `libnotify-bin` |
-| `gcloud` | Provisionnement initial du bucket GCS et du compte de service (Service Account) | `pkgs.google-cloud-sdk` | `google-cloud-cli` |
-| `coreutils` & `util-linux` | Commandes système standard (`sha256sum`, `flock`, `shred`) | Fourni par le système | `coreutils`, `util-linux` |
+| Binaire / Paquet              | Rôle dans l'architecture                                                        | Paquet Nixpkgs          | Paquet Debian/Ubuntu      |
+| :---------------------------- | :------------------------------------------------------------------------------ | :---------------------- | :------------------------ |
+| `keepassxc` & `keepassxc-cli` | Gestionnaire de mots de passe & outil CLI de fusion au niveau entrée            | `pkgs.keepassxc`        | `keepassxc`               |
+| `rclone`                      | Transport robuste et authentifié vers le bucket Google Cloud Storage            | `pkgs.rclone`           | `rclone`                  |
+| `secret-tool`                 | Lecture/écriture sécurisée du mot de passe maître dans le trousseau de session  | `pkgs.libsecret`        | `libsecret-tools`         |
+| `notify-send`                 | Émission de notifications de bureau lors des fusions et alertes d'erreurs       | `pkgs.libnotify`        | `libnotify-bin`           |
+| `gcloud`                      | Provisionnement initial du bucket GCS et du compte de service (Service Account) | `pkgs.google-cloud-sdk` | `google-cloud-cli`        |
+| `coreutils` & `util-linux`    | Commandes système standard (`sha256sum`, `flock`, `shred`)                      | Fourni par le système   | `coreutils`, `util-linux` |
 
 ### 3. Pré-requis de session utilisateur (Secret Service / Keyring)
 
 Pour autoriser le script en tâche de fond à déverrouiller la base de données et à fusionner les modifications distantes de manière transparente sans afficher d'invite de saisie interactive à chaque synchronisation, un trousseau Secret Service doit être actif sur votre session graphique (GNOME Keyring, KWallet ou KeePassXC Secret Service).
 
 Sur **NixOS**, activez GNOME Keyring dans votre configuration :
+
 ```nix
 services.gnome.gnome-keyring.enable = true;
 security.pam.services.login.enableGnomeKeyring = true;
@@ -88,6 +89,7 @@ nix develop
 ```
 
 Le script réalise automatiquement :
+
 1. La création d'un bucket GCS sécurisé (ex: `gs://<projet>-keepass-vault`).
 2. **L'activation de l'Object Versioning** sur le bucket (permettant d'annuler tout écrasement ou de récupérer un état antérieur à tout moment).
 3. La création d'un Service Account dédié (`keepass-sync-sa@...`).
@@ -102,7 +104,7 @@ Le script réalise automatiquement :
 1. **Exporter le coffre Bitwarden** :
    - Connectez-vous sur votre coffre Bitwarden (application Web ou Desktop).
    - Allez dans **Paramètres** -> **Exporter le coffre**.
-   - Choisissez le format de fichier : **JSON (non chiffré)** *(le format JSON conserve l'arborescence des dossiers, les notes sécurisées, les champs personnalisés et les graines 2FA/TOTP)*.
+   - Choisissez le format de fichier : **JSON (non chiffré)** _(le format JSON conserve l'arborescence des dossiers, les notes sécurisées, les champs personnalisés et les graines 2FA/TOTP)_.
    - Enregistrez le fichier temporairement dans un dossier en RAM (ex: `/run/user/$UID/bitwarden_export.json`).
 
 2. **Importer dans KeePassXC** :
@@ -131,44 +133,42 @@ Le script réalise automatiquement :
 ### Étape 3 : Configuration du PC (Linux / NixOS)
 
 1. **Enregistrer le mot de passe maître dans le trousseau de session** :
+
    ```bash
    ./scripts/setup-keyring.sh
    ```
-   *Ce mot de passe reste chiffré par votre session de bureau et n'est jamais écrit en clair dans un fichier.*
+
+   _Ce mot de passe reste chiffré par votre session de bureau et n'est jamais écrit en clair dans un fichier._
 
 2. **Premier test de synchronisation** :
+
    ```bash
    ./scripts/keepass-sync.sh
    ```
-   *La base locale est immédiatement vérifiée et téléversée sur votre bucket GCS.*
 
-3. **Activation de l'automatisation systemd utilisateur** :
+   _La base locale est immédiatement vérifiée et téléversée sur votre bucket GCS._
 
-   Copiez ou liez les fichiers d'unités dans votre répertoire utilisateur :
-   ```bash
-   mkdir -p ~/.config/systemd/user
-   cp systemd/* ~/.config/systemd/user/
-   systemctl --user daemon-reload
-   systemctl --user enable --now keepass-sync.timer
-   systemctl --user enable --now keepass-sync.path
-   ```
+3. **Activation déclarative via Home Manager (Recommandé)** :
 
-   * **`keepass-sync.path`** : Dès que vous enregistrez une modification dans KeePassXC (`Ctrl+S`), le path unit le détecte instantanément via `inotify` et pousse la mise à jour sur GCS en quelques secondes.
-   * **`keepass-sync.timer`** : Récupère et fusionne automatiquement les entrées distantes (ex: mot de passe créé depuis votre smartphone) toutes les 5 minutes.
+   Importez directement le module Home Manager dans votre configuration utilisateur (ou flake dotfiles) :
 
-4. *(Optionnel) Intégration déclarative via Home Manager* :
-   Si vous gérez vos dotfiles avec Home Manager, importez simplement le module :
    ```nix
    imports = [
+     # Chemin vers le module du dépôt ou via inputs.keepass-sync.homeManagerModules.default
      /chemin/vers/keepaas_sync/nix/home-manager-module.nix
    ];
 
    services.keepass-sync = {
      enable = true;
      localPath = "${config.home.homeDirectory}/.local/share/keepass/passwords.kdbx";
-     interval = "5m";
+     interval = "5m"; # Intervalle de pull/merge périodique
    };
    ```
+
+   Après application (`home-manager switch` ou `nixos-rebuild switch`), Home Manager génère, configure et démarre automatiquement :
+   - **`keepass-sync.path`** : Dès que vous enregistrez une modification dans KeePassXC (`Ctrl+S`), le path unit le détecte instantanément via `inotify` et pousse la mise à jour sur GCS en quelques secondes.
+   - **`keepass-sync.timer`** : Récupère et fusionne automatiquement les entrées distantes (ex: mot de passe créé depuis votre smartphone) toutes les 5 minutes.
+   - **`keepass-sync.service`** : Le service déclenché avec le bon `PATH` et les outils du store Nix hermétiquement liés.
 
 ---
 
@@ -176,7 +176,7 @@ Le script réalise automatiquement :
 
 1. **Applications recommandées** :
    - **KeePassDX** (disponible sur [F-Droid](https://f-droid.org/packages/com.kunzisoft.keepass.libre/) ou Google Play) : client moderne, open-source, supportant l'Autofill Android et le déverrouillage biométrique (empreinte).
-   - **Round-sync** (disponible sur [GitHub Releases](https://github.com/newh酥/round-sync) ou F-Droid) : portage Android open-source officiel de Rclone, supportant nativement Google Cloud Storage avec clé de service. *(Alternative : FolderSync).*
+   - **Round-sync** (disponible sur [GitHub Releases](https://github.com/newh酥/round-sync) ou F-Droid) : portage Android open-source officiel de Rclone, supportant nativement Google Cloud Storage avec clé de service. _(Alternative : FolderSync)._
 
 2. **Transfert sécurisé de la clé Service Account** :
    - Transférez le fichier `~/.config/keepass-sync/gcp-service-account.json` sur votre téléphone (via câble USB, KDE Connect, ou `adb push`).
