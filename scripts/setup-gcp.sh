@@ -85,14 +85,26 @@ chmod 600 "$KEY_FILE"
 echo "✅ Clé exportée vers : $KEY_FILE"
 
 echo ""
-echo "6. Génération de la configuration locale (~/.config/keepass-sync/config.env)..."
+echo "6. Configuration des chemins de la base KeePass..."
+DEFAULT_LOCAL_PATH="${KEEPASS_LOCAL_PATH:-$HOME/.local/share/keepass/passwords.kdbx}"
+read -r -p "Chemin local de votre base (.kdbx) [${DEFAULT_LOCAL_PATH}]: " USER_LOCAL_PATH
+USER_LOCAL_PATH="${USER_LOCAL_PATH:-$DEFAULT_LOCAL_PATH}"
+# Expansion du tilde si l'utilisateur a saisi ~/chemin
+USER_LOCAL_PATH="${USER_LOCAL_PATH/#\~/$HOME}"
+
+DEFAULT_OBJECT_NAME="passwords.kdbx"
+read -r -p "Nom du fichier stocké sur GCS [${DEFAULT_OBJECT_NAME}]: " USER_OBJECT_NAME
+USER_OBJECT_NAME="${USER_OBJECT_NAME:-$DEFAULT_OBJECT_NAME}"
+
+echo ""
+echo "7. Génération de la configuration locale (~/.config/keepass-sync/config.env)..."
 CONFIG_ENV_FILE="${KEY_OUTPUT_DIR}/config.env"
 cat <<EOF > "$CONFIG_ENV_FILE"
 # Configuration KeePass Sync
-KEEPASS_LOCAL_PATH="\$HOME/.local/share/keepass/passwords.kdbx"
+KEEPASS_LOCAL_PATH="${USER_LOCAL_PATH}"
 KEEPASS_RCLONE_REMOTE="gcs-keepass"
 KEEPASS_GCS_BUCKET="${BUCKET_NAME}"
-KEEPASS_GCS_OBJECT="passwords.kdbx"
+KEEPASS_GCS_OBJECT="${USER_OBJECT_NAME}"
 KEEPASS_KEYRING_SERVICE="keepass-sync"
 KEEPASS_KEYRING_USER="master"
 KEEPASS_NOTIFY_ENABLED="1"
@@ -101,7 +113,7 @@ chmod 600 "$CONFIG_ENV_FILE"
 echo "✅ Fichier de configuration écrit dans : $CONFIG_ENV_FILE"
 
 echo ""
-echo "7. Configuration de Rclone..."
+echo "8. Configuration de Rclone..."
 echo "Ajout automatique du remote 'gcs-keepass' dans ~/.config/rclone/rclone.conf :"
 rclone config create gcs-keepass google cloud storage \
     service_account_file "$KEY_FILE" \

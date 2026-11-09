@@ -20,11 +20,12 @@ Exécutez le script interactif d'initialisation GCP :
 ./scripts/setup-gcp.sh
 ```
 
-Ce script configure :
+Ce script configure interactivement :
 - Le bucket GCS avec **Object Versioning activé**.
 - Le Service Account restreint à `roles/storage.objectAdmin` sur le bucket.
 - La clé privée JSON stockée dans `~/.config/keepass-sync/gcp-service-account.json`.
 - Le remote Rclone `gcs-keepass` dans `~/.config/rclone/rclone.conf`.
+- Le chemin local de votre base `.kdbx` (modifiable à l'invite).
 - Le fichier d'environnement `~/.config/keepass-sync/config.env`.
 
 ## 3. Configurer le trousseau Secret Service (Linux)
