@@ -106,6 +106,23 @@ if [[ -z "$GCS_BUCKET" && -z "${KEEPASS_REMOTE_URI:-}" ]]; then
     exit 1
 fi
 
+# Vérification du profil Rclone
+if ! rclone listremotes 2>/dev/null | grep -q "^${RCLONE_REMOTE}:"; then
+    SA_KEY_FILE="${CONFIG_DIR}/gcp-service-account.json"
+    if [[ -f "$SA_KEY_FILE" ]]; then
+        log "Profil Rclone '${RCLONE_REMOTE}' manquant. Configuration automatique via $SA_KEY_FILE..."
+        rclone config create "$RCLONE_REMOTE" gcs \
+            service_account_file "$SA_KEY_FILE" \
+            bucket_policy_only true >/dev/null 2>&1 || true
+    fi
+
+    if ! rclone listremotes 2>/dev/null | grep -q "^${RCLONE_REMOTE}:"; then
+        log_error "Le remote Rclone '${RCLONE_REMOTE}' est introuvable. Exécutez './scripts/setup-config.sh'."
+        notify "critical" "KeePass Sync - Rclone non configuré" "Le remote '${RCLONE_REMOTE}' est introuvable dans rclone.conf."
+        exit 1
+    fi
+fi
+
 mkdir -p "$WORK_DIR" "$HASH_CACHE_DIR" "$(dirname "$LOCAL_KDBX")"
 chmod 700 "$WORK_DIR" "$HASH_CACHE_DIR"
 
@@ -116,7 +133,8 @@ REMOTE_TMP="${WORK_DIR}/remote.kdbx"
 # ------------------------------------------------------------------------------
 if [[ ! -f "$LOCAL_KDBX" ]]; then
     log "La base locale n'existe pas encore ($LOCAL_KDBX). Tentative de téléchargement depuis GCS..."
-    if rclone copyto "$REMOTE_URI" "$LOCAL_KDBX" 2>/dev/null; then
+    rclone copyto "$REMOTE_URI" "$LOCAL_KDBX" 2>/dev/null || true
+    if [[ -f "$LOCAL_KDBX" ]]; then
         chmod 600 "$LOCAL_KDBX"
         sha256sum "$LOCAL_KDBX" | awk '{print $1}' > "$LAST_SYNC_HASH_FILE"
         log "Base locale initialisée avec succès depuis GCS."
@@ -135,7 +153,9 @@ LOCAL_HASH=$(sha256sum "$LOCAL_KDBX" | awk '{print $1}')
 
 log "Vérification de la base distante sur GCS ($REMOTE_URI)..."
 REMOTE_EXISTS=1
-if ! rclone copyto "$REMOTE_URI" "$REMOTE_TMP" 2>/dev/null; then
+rclone copyto "$REMOTE_URI" "$REMOTE_TMP" 2>/dev/null || true
+
+if [[ ! -f "$REMOTE_TMP" ]]; then
     REMOTE_EXISTS=0
     log "La base distante n'existe pas encore sur GCS. Première synchronisation requise."
 fi

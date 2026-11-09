@@ -73,9 +73,9 @@ echo "✅ Configuration enregistrée dans : $CONFIG_FILE"
 if command -v rclone >/dev/null 2>&1 && [[ -f "$USER_KEY_FILE" ]]; then
     echo ""
     echo "Configuration du profil Rclone 'gcs-keepass'..."
-    rclone config create gcs-keepass google cloud storage \
+    rclone config create gcs-keepass gcs \
         service_account_file "$USER_KEY_FILE" \
-        bucket_policy_only true >/dev/null 2>&1
+        bucket_policy_only true
     echo "✅ Remote Rclone 'gcs-keepass' configuré avec succès."
 else
     echo ""
