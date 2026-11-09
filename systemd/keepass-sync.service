@@ -1,0 +1,15 @@
+[Unit]
+Description=Synchronisation bidirectionnelle KeePass avec Google Cloud Storage
+Documentation=https://github.com/qsw/keepaas_sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Le script vérifie lui-même la présence de la connexion et gère le verrouillage flock
+ExecStart=%h/dev/keepaas_sync/scripts/keepass-sync.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

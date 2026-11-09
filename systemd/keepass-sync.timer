@@ -1,0 +1,14 @@
+[Unit]
+Description=Timer de synchronisation périodique KeePass (Pull & Merge GCS)
+After=network-online.target
+
+[Timer]
+# Premier déclenchement 1 minute après le login
+OnBootSec=1m
+OnStartupSec=1m
+# Répétition toutes les 5 minutes
+OnUnitActiveSec=5m
+Persistent=true
+
+[Install]
+WantedBy=timers.target
