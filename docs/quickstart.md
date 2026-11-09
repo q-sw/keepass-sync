@@ -12,23 +12,34 @@ Grâce au Flake Nix, entrez directement dans le shell contenant tous les outils 
 nix develop
 ```
 
-## 2. Provisionner le stockage GCS & Compte de service
+## 2. Provisionner l'infrastructure Cloud (GCS & IAM)
 
-Exécutez le script interactif d'initialisation GCP :
+Exécutez le script dédié au provisionnement Google Cloud :
 
 ```bash
 ./scripts/setup-gcp.sh
 ```
 
-Ce script configure interactivement :
-- Le bucket GCS avec **Object Versioning activé**.
-- Le Service Account restreint à `roles/storage.objectAdmin` sur le bucket.
-- La clé privée JSON stockée dans `~/.config/keepass-sync/gcp-service-account.json`.
-- Le remote Rclone `gcs-keepass` dans `~/.config/rclone/rclone.conf`.
-- Le chemin local de votre base `.kdbx` (modifiable à l'invite).
-- Le fichier d'environnement `~/.config/keepass-sync/config.env`.
+Ce script configure exclusivement le côté GCP :
+- Création du bucket GCS avec **Object Versioning activé**.
+- Création du Service Account restreint à `roles/storage.objectAdmin` sur le bucket.
+- Export sécurisé de la clé privée JSON dans `~/.config/keepass-sync/gcp-service-account.json`.
 
-## 3. Configurer le trousseau Secret Service (Linux)
+## 3. Configurer le client local & Rclone
+
+Exécutez le script de configuration client :
+
+```bash
+./scripts/setup-config.sh
+```
+
+Ce script interactif configure :
+- Le chemin local de votre base `.kdbx` (modifiable à l'invite).
+- Le nom de l'objet sur GCS.
+- La génération du fichier de configuration `~/.config/keepass-sync/config.env`.
+- La configuration du remote Rclone `gcs-keepass` avec la clé JSON.
+
+## 4. Configurer le trousseau Secret Service (Linux)
 
 Pour autoriser les fusions en tâche de fond sans invite interactive :
 
@@ -37,17 +48,16 @@ Pour autoriser les fusions en tâche de fond sans invite interactive :
 ```
 Saisissez votre mot de passe maître KeePass. Il sera stocké de manière chiffrée dans votre trousseau de session de bureau (GNOME Keyring / KWallet).
 
-## 4. Initialiser la base locale
+## 5. Initialiser la base locale
 
 - Si vous migrez depuis Bitwarden, suivez la [Procédure de Migration](file:///home/qsw/dev/keepaas_sync/docs/bitwarden-migration.md).
-- Si vous avez déjà une base KeePass existante, placez-la dans l'emplacement par défaut :
+- Si vous avez déjà une base KeePass existante, placez-la dans le chemin choisi :
   ```bash
-  mkdir -p ~/.local/share/keepass
   cp /chemin/vers/ma_base.kdbx ~/.local/share/keepass/passwords.kdbx
   chmod 600 ~/.local/share/keepass/passwords.kdbx
   ```
 
-## 5. Valider la première synchronisation
+## 6. Valider la première synchronisation
 
 Testez manuellement le script de synchronisation :
 
@@ -56,7 +66,7 @@ Testez manuellement le script de synchronisation :
 ```
 La base est vérifiée et téléversée immédiatement vers votre bucket GCS.
 
-## 6. Déclarer le service dans Home Manager
+## 7. Déclarer le service dans Home Manager
 
 Ajoutez le module dans vos dotfiles Home Manager :
 

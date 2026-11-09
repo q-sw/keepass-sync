@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # setup-gcp.sh
-# Création du bucket GCS avec versioning et du compte de service (Service Account)
-# avec privilèges minimaux (roles/storage.objectAdmin) pour KeePass.
+# Provisionnement de l'infrastructure Google Cloud Storage pour KeePass :
+# 1. Création du bucket GCS avec Object Versioning activé.
+# 2. Création du Service Account dédié avec moindres privilèges (objectAdmin).
+# 3. Export de la clé privée JSON du Service Account.
 # ==============================================================================
 
 set -euo pipefail
@@ -13,10 +15,10 @@ if ! command -v gcloud >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "☁️ Configuration GCP pour KeePass Sync"
-echo "---------------------------------------"
+echo "☁️ Provisionnement de l'infrastructure GCP pour KeePass"
+echo "------------------------------------------------------"
 
-# Récupération ou demande du projet GCP
+# Récupération ou saisie du projet GCP
 CURRENT_PROJECT=$(gcloud config get-value project 2>/dev/null || true)
 read -r -p "Identifiant du projet GCP [${CURRENT_PROJECT:-mon-projet-gcp}]: " GCP_PROJECT
 GCP_PROJECT="${GCP_PROJECT:-$CURRENT_PROJECT}"
@@ -47,7 +49,7 @@ chmod 700 "$KEY_OUTPUT_DIR"
 echo ""
 echo "1. Création du bucket gs://${BUCKET_NAME}..."
 if gcloud storage buckets describe "gs://${BUCKET_NAME}" >/dev/null 2>&1; then
-    echo "ℹ️ Le bucket existe déjà."
+    echo "ℹ️ Le bucket gs://${BUCKET_NAME} existe déjà."
 else
     gcloud storage buckets create "gs://${BUCKET_NAME}" \
         --location="$REGION" \
@@ -78,49 +80,15 @@ gcloud storage buckets add-iam-policy-binding "gs://${BUCKET_NAME}" \
 echo "✅ Rôle appliqué."
 
 echo ""
-echo "5. Génération de la clé de compte de service JSON..."
+echo "5. Export de la clé de compte de service JSON..."
 gcloud iam service-accounts keys create "$KEY_FILE" \
     --iam-account="$SA_EMAIL"
 chmod 600 "$KEY_FILE"
 echo "✅ Clé exportée vers : $KEY_FILE"
 
 echo ""
-echo "6. Configuration des chemins de la base KeePass..."
-DEFAULT_LOCAL_PATH="${KEEPASS_LOCAL_PATH:-$HOME/.local/share/keepass/passwords.kdbx}"
-read -r -p "Chemin local de votre base (.kdbx) [${DEFAULT_LOCAL_PATH}]: " USER_LOCAL_PATH
-USER_LOCAL_PATH="${USER_LOCAL_PATH:-$DEFAULT_LOCAL_PATH}"
-# Expansion du tilde si l'utilisateur a saisi ~/chemin
-USER_LOCAL_PATH="${USER_LOCAL_PATH/#\~/$HOME}"
-
-DEFAULT_OBJECT_NAME="passwords.kdbx"
-read -r -p "Nom du fichier stocké sur GCS [${DEFAULT_OBJECT_NAME}]: " USER_OBJECT_NAME
-USER_OBJECT_NAME="${USER_OBJECT_NAME:-$DEFAULT_OBJECT_NAME}"
-
+echo "🎉 Infrastructure GCP provisionnée avec succès !"
 echo ""
-echo "7. Génération de la configuration locale (~/.config/keepass-sync/config.env)..."
-CONFIG_ENV_FILE="${KEY_OUTPUT_DIR}/config.env"
-cat <<EOF > "$CONFIG_ENV_FILE"
-# Configuration KeePass Sync
-KEEPASS_LOCAL_PATH="${USER_LOCAL_PATH}"
-KEEPASS_RCLONE_REMOTE="gcs-keepass"
-KEEPASS_GCS_BUCKET="${BUCKET_NAME}"
-KEEPASS_GCS_OBJECT="${USER_OBJECT_NAME}"
-KEEPASS_KEYRING_SERVICE="keepass-sync"
-KEEPASS_KEYRING_USER="master"
-KEEPASS_NOTIFY_ENABLED="1"
-EOF
-chmod 600 "$CONFIG_ENV_FILE"
-echo "✅ Fichier de configuration écrit dans : $CONFIG_ENV_FILE"
-
-echo ""
-echo "8. Configuration de Rclone..."
-echo "Ajout automatique du remote 'gcs-keepass' dans ~/.config/rclone/rclone.conf :"
-rclone config create gcs-keepass google cloud storage \
-    service_account_file "$KEY_FILE" \
-    bucket_policy_only true \
-    location "$REGION"
-
-echo ""
-echo "🎉 Configuration GCP terminée avec succès !"
-echo "Pour transférer cette clé sur votre smartphone Android (pour Round-sync / FolderSync) :"
-echo "Fichier à copier sur le téléphone : $KEY_FILE"
+echo "Prochaines étapes :"
+echo "1. Exécutez './scripts/setup-config.sh' pour configurer vos chemins locaux et Rclone."
+echo "2. Copiez '$KEY_FILE' sur votre smartphone Android pour Round-sync / FolderSync."

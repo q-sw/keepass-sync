@@ -91,8 +91,11 @@ Pour naviguer pas-à-pas selon votre besoin, consultez les guides dédiés dans 
 ## ⚡ Commandes utiles au quotidien
 
 ```bash
-# Provisionner l'infrastructure GCP (une seule fois)
+# Provisionner l'infrastructure GCP (bucket, IAM, clé)
 ./scripts/setup-gcp.sh
+
+# Configurer les chemins locaux et Rclone
+./scripts/setup-config.sh
 
 # Enregistrer le mot de passe maître dans le trousseau
 ./scripts/setup-keyring.sh
