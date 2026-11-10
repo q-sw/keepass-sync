@@ -25,23 +25,38 @@ Ce script configure exclusivement le côté GCP :
 - Création du Service Account restreint à `roles/storage.objectAdmin` sur le bucket.
 - Export sécurisé de la clé privée JSON dans `~/.config/keepass-sync/gcp-service-account.json`.
 
-## 3. Configurer le client local & Rclone
+## 3. Configuration automatique via Home Manager (Recommandé)
 
-Exécutez le script de configuration client :
+Si vous utilisez Home Manager, **toute la configuration locale est gérée automatiquement lors de l'activation**. Inutile de lancer `setup-config.sh`.
 
-```bash
-./scripts/setup-config.sh
+Ajoutez simplement le module dans vos dotfiles :
+
+```nix
+imports = [
+  /chemin/vers/keepaas_sync/nix/home-manager-module.nix
+];
+
+services.keepass-sync = {
+  enable = true;
+  bucket = "qsw-main-keepass-vault"; # Nom de votre bucket GCS
+  localPath = "${config.home.homeDirectory}/Documents/Passwords.kdbx";
+  
+  # Optionnel : gestion déclarative du secret (sops-nix / agenix)
+  # passwordFile = "/run/secrets/keepass-master-password";
+};
 ```
 
-Ce script interactif configure :
-- Le chemin local de votre base `.kdbx` (modifiable à l'invite).
-- Le nom de l'objet sur GCS.
-- La génération du fichier de configuration `~/.config/keepass-sync/config.env`.
-- La configuration du remote Rclone `gcs-keepass` avec la clé JSON.
+À l'activation (`home-manager switch`), le module prend tout en charge automatiquement :
+1. Crée les dossiers locaux nécessaires.
+2. Génère le fichier `~/.config/keepass-sync/config.env`.
+3. Configure automatiquement le profil `gcs-keepass` dans Rclone via la clé Service Account.
+4. Active `keepass-sync.path` (push immédiat sur sauvegarde) et `keepass-sync.timer` (pull/merge toutes les 5 min).
+
+*(Alternative sans Home Manager : exécutez manuellement `./scripts/setup-config.sh`)*.
 
 ## 4. Configurer le trousseau Secret Service (Linux)
 
-Pour autoriser les fusions en tâche de fond sans invite interactive :
+Si vous n'utilisez pas l'option `passwordFile` (avec sops-nix), enregistrez une fois le mot de passe maître dans le trousseau de session :
 
 ```bash
 ./scripts/setup-keyring.sh
@@ -53,8 +68,8 @@ Saisissez votre mot de passe maître KeePass. Il sera stocké de manière chiffr
 - Si vous migrez depuis Bitwarden, suivez la [Procédure de Migration](file:///home/qsw/dev/keepaas_sync/docs/bitwarden-migration.md).
 - Si vous avez déjà une base KeePass existante, placez-la dans le chemin choisi :
   ```bash
-  cp /chemin/vers/ma_base.kdbx ~/.local/share/keepass/passwords.kdbx
-  chmod 600 ~/.local/share/keepass/passwords.kdbx
+  cp /chemin/vers/ma_base.kdbx ~/Documents/Passwords.kdbx
+  chmod 600 ~/Documents/Passwords.kdbx
   ```
 
 ## 6. Valider la première synchronisation
@@ -65,30 +80,5 @@ Testez manuellement le script de synchronisation :
 ./scripts/keepass-sync.sh
 ```
 La base est vérifiée et téléversée immédiatement vers votre bucket GCS.
-
-## 7. Déclarer le service dans Home Manager
-
-Ajoutez le module dans vos dotfiles Home Manager :
-
-```nix
-imports = [
-  /chemin/vers/keepaas_sync/nix/home-manager-module.nix
-];
-
-services.keepass-sync = {
-  enable = true;
-  localPath = "${config.home.homeDirectory}/.local/share/keepass/passwords.kdbx";
-  interval = "5m"; # Pull régulier toutes les 5 minutes
-};
-```
-
-Appliquez votre configuration :
-```bash
-home-manager switch # ou nixos-rebuild switch
-```
-
-Home Manager active immédiatement :
-- `keepass-sync.path` : Déclenche un push instantané dès modification du fichier `.kdbx` dans KeePassXC.
-- `keepass-sync.timer` : Interroge et fusionne les modifications distantes toutes les 5 minutes.
 
 Pour configurer votre smartphone Android, consultez la [Configuration Android](file:///home/qsw/dev/keepaas_sync/docs/android-setup.md).

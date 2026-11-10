@@ -183,10 +183,14 @@ if [[ "$LOCAL_HASH" == "$REMOTE_HASH" ]]; then
 fi
 
 # ------------------------------------------------------------------------------
-# 8. Récupération du mot de passe maître depuis Secret Service
+# 8. Récupération du mot de passe maître
 # ------------------------------------------------------------------------------
 get_master_password() {
-    if command -v secret-tool >/dev/null 2>&1; then
+    if [[ -n "${KEEPASS_PASSWORD_FILE:-}" && -f "$KEEPASS_PASSWORD_FILE" ]]; then
+        cat "$KEEPASS_PASSWORD_FILE"
+    elif [[ -n "${KEEPASS_PASSWORD_COMMAND:-}" ]]; then
+        eval "$KEEPASS_PASSWORD_COMMAND" 2>/dev/null || true
+    elif command -v secret-tool >/dev/null 2>&1; then
         secret-tool lookup service "$KEYRING_SERVICE" user "$KEYRING_USER" 2>/dev/null || true
     else
         echo ""
@@ -196,8 +200,8 @@ get_master_password() {
 MASTER_PASSWORD=$(get_master_password)
 
 if [[ -z "$MASTER_PASSWORD" ]]; then
-    log_error "Impossible de récupérer le mot de passe maître depuis Secret Service (service: $KEYRING_SERVICE, user: $KEYRING_USER)."
-    notify "critical" "KeePass Sync - Clé manquante" "Mot de passe maître introuvable dans le trousseau de clés (secret-tool)."
+    log_error "Impossible de récupérer le mot de passe maître (méthodes essayées : KEEPASS_PASSWORD_FILE, KEEPASS_PASSWORD_COMMAND, secret-tool)."
+    notify "critical" "KeePass Sync - Clé manquante" "Mot de passe maître introuvable (Secret Service ou fichier secret)."
     exit 1
 fi
 
