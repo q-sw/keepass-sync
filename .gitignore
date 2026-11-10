@@ -1,0 +1,14 @@
+# IDEs
+.idea/
+.vscode/
+
+# Nix & direnv
+result
+result-*
+.direnv/
+
+# Local runtime secrets and configs
+config.env
+*.kdbx
+*.key
+gcp-service-account.json
