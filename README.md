@@ -10,32 +10,32 @@ Chaque appareil lit et écrit instantanément dans sa copie locale (`passwords.k
 
 ```mermaid
 flowchart TD
-    subgraph Cloud[" Google Cloud Storage "]
-        GCS[("Bucket GCS\n(Object Versioning activé)")]
+    subgraph Cloud["Google Cloud Storage"]
+        GCS[("Bucket GCS<br>Object Versioning activé")]
     end
 
-    subgraph Laptop[" PC Portable (NixOS) "]
-        KPXC["KeePassXC (GUI)\nÉdition en direct"]
-        LocalKDBX[("Base locale\n~/.local/share/keepass/passwords.kdbx")]
-        SyncScript["Script de sync\n(rclone + keepassxc-cli merge)"]
-        Keyring[("Secret Service / Keyring\nMot de passe maître")]
-        SystemdUnits["Systemd User Units\n• Path unit (Push sur sauvegarde)\n• Timer unit (Pull toutes les 5 min)"]
+    subgraph Laptop["PC Portable - NixOS"]
+        KPXC["KeePassXC - GUI<br>Édition en direct"]
+        LocalKDBX[("Base locale<br>passwords.kdbx")]
+        SyncScript["Script de sync<br>rclone + keepassxc-cli merge"]
+        Keyring[("Secret Service / Keyring<br>Mot de passe maître")]
+        SystemdUnits["Systemd User Units<br>• Path unit : Push sur sauvegarde<br>• Timer unit : Pull toutes les 5 min"]
 
-        KPXC <-->|Lecture / Écriture locale| LocalKDBX
-        SystemdUnits -->|Déclenche| SyncScript
-        Keyring -.->|Fournit credentials| SyncScript
-        SyncScript <-->|Fusion 3-voies| LocalKDBX
-        SyncScript <-->|rclone copyto| GCS
+        KPXC <-->|"Lecture / Écriture locale"| LocalKDBX
+        SystemdUnits -->|"Déclenche"| SyncScript
+        Keyring -.->|"Fournit credentials"| SyncScript
+        SyncScript <-->|"Fusion 3-voies"| LocalKDBX
+        SyncScript <-->|"rclone copyto"| GCS
     end
 
-    subgraph Mobile[" Smartphone (Android) "]
-        KPDX["KeePassDX\n(Autofill + Biométrie)"]
-        MobileLocal[("Stockage local Android\nDocuments/KeePass/passwords.kdbx")]
-        RoundSync["Round-sync ou FolderSync\n(Service Account GCS)"]
+    subgraph Mobile["Smartphone - Android"]
+        KPDX["KeePassDX<br>Autofill + Biométrie"]
+        MobileLocal[("Stockage local Android<br>Documents/KeePass/passwords.kdbx")]
+        RoundSync["Round-sync ou FolderSync<br>Service Account GCS"]
 
-        KPDX <-->|SAF (Accès fichier local)| MobileLocal
-        RoundSync <-->|Synchro périodique| MobileLocal
-        RoundSync <-->|API GCS chiffrée| GCS
+        KPDX <-->|"SAF - Accès fichier local"| MobileLocal
+        RoundSync <-->|"Synchro périodique"| MobileLocal
+        RoundSync <-->|"API GCS chiffrée"| GCS
     end
 ```
 
